@@ -12,4 +12,6 @@ sqlc:
 	docker run --rm -v "D:\golang_sdk\go\SimpleBank:/src" -w /src sqlc/sqlc generate
 test:
 	go test -v -cover ./...
-.PHONY: createdb  dropdb migrateup migratedown sqlc
+server:
+	go run main.go
+.PHONY: createdb  dropdb migrateup migratedown sqlc server
