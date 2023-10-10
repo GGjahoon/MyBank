@@ -15,7 +15,7 @@ sql:
               out: "./db/sqlc"#生成文件所存储的路径
               emit_json_tags: true
               emit_prepared_queries: false
-              emit_interface: false
+              emit_interface: true
               emit_exact_table_names: false
               emit_empty_slices: true
 
