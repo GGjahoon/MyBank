@@ -167,7 +167,7 @@ func TestCreateUserAPI(t *testing.T) {
 			tc.buildStubs(store)
 
 			recorder := httptest.NewRecorder()
-			server := NewServer(store)
+			server := NewTestServer(t, store)
 
 			data, err := json.Marshal(tc.body)
 			require.NoError(t, err)
