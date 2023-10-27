@@ -20,4 +20,8 @@ server:
 	go run main.go
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/GGjahoon/MySimpleBank/db/sqlc Store
-.PHONY: createdb  dropdb migrateup migratedown sqlc server mock migrateup1 migratedown1
+proto:
+	.\set.bat
+evans:
+	evans --host localhost --port 9090 -r repl
+.PHONY: createdb  dropdb migrateup migratedown sqlc server mock migrateup1 migratedown1 proto test evans
