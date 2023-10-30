@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/GGjahoon/MySimpleBank/api"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
 	"github.com/GGjahoon/MySimpleBank/gapi"
 	"github.com/GGjahoon/MySimpleBank/pb"
 	"github.com/GGjahoon/MySimpleBank/util"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
@@ -27,12 +31,26 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot connect to db:", err)
 	}
+	fmt.Println(config.MigrationUrl)
+	runDBMigration(config.MigrationUrl, config.DBSource)
 	store := db.NewStore(conn)
 
-	runGinServer(config, store)
-	//go runGatewayServer(config, store)
-	//runGrpcServer(config, store)
+	//runGinServer(config, store)
+	go runGatewayServer(config, store)
+	runGrpcServer(config, store)
 }
+
+func runDBMigration(migrateURL string, DBSource string) {
+	m, err := migrate.New(migrateURL, DBSource)
+	if err != nil {
+		log.Fatal("cannot create a new migrate instance", err)
+	}
+	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal("cannot migrate up ", err)
+	}
+	log.Println("migrate successfully")
+}
+
 func runGrpcServer(config util.Config, store db.Store) {
 	server, err := gapi.NewServer(config, store)
 	if err != nil {
