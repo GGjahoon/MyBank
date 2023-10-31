@@ -14,22 +14,27 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
-	"log"
 	"net"
 	"net/http"
+	"os"
 )
 
 func main() {
 	config, err := util.LoadConfig(".")
 	if err != nil {
-		log.Fatal("cannot load config :", err)
+		log.Fatal().Err(err).Msg("cannot load config ")
+	}
+	if config.Environment == "development" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {
-		log.Fatal("cannot connect to db:", err)
+		log.Fatal().Err(err).Msg("cannot connect to db")
 	}
 	fmt.Println(config.MigrationUrl)
 	runDBMigration(config.MigrationUrl, config.DBSource)
@@ -43,36 +48,37 @@ func main() {
 func runDBMigration(migrateURL string, DBSource string) {
 	m, err := migrate.New(migrateURL, DBSource)
 	if err != nil {
-		log.Fatal("cannot create a new migrate instance", err)
+		log.Fatal().Err(err).Msg("cannot create a new migrate instance")
 	}
 	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal("cannot migrate up ", err)
+		log.Fatal().Err(err).Msg("cannot migrate up")
 	}
-	log.Println("migrate successfully")
+	log.Info().Msg("migrate successfully")
 }
 
 func runGrpcServer(config util.Config, store db.Store) {
 	server, err := gapi.NewServer(config, store)
 	if err != nil {
-		log.Fatal("cannot create a new server", err)
+		log.Fatal().Err(err).Msg("cannot create a new server")
 	}
-	grpcServer := grpc.NewServer()
+	grpcLogger := grpc.UnaryInterceptor(gapi.GrpcLogger)
+	grpcServer := grpc.NewServer(grpcLogger)
 	pb.RegisterSimpleBankServer(grpcServer, server)
 	reflection.Register(grpcServer)
 	listener, err := net.Listen("tcp", config.GRPCServerAddress)
 	if err != nil {
-		log.Fatal("cannot create listener", err)
+		log.Fatal().Err(err).Msg("cannot create listener")
 	}
-	log.Printf("start gRPC server at %s", listener.Addr().String())
+	log.Info().Msgf("start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
 	if err != nil {
-		log.Fatal("cannot create grpc Server", err)
+		log.Fatal().Err(err).Msg("cannot create grpc Server")
 	}
 }
 func runGatewayServer(config util.Config, store db.Store) {
 	server, err := gapi.NewServer(config, store)
 	if err != nil {
-		log.Fatal("cannot create a new server:", err)
+		log.Fatal().Err(err).Msg("cannot create a new server")
 	}
 	jsonOption := runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 		MarshalOptions: protojson.MarshalOptions{
@@ -87,7 +93,7 @@ func runGatewayServer(config util.Config, store db.Store) {
 	defer cancel()
 	err = pb.RegisterSimpleBankHandlerServer(ctx, grpcMux, server)
 	if err != nil {
-		log.Fatal("cannot register handler server  ")
+		log.Fatal().Err(err).Msg("cannot register handler server  ")
 	}
 	//create a new http serve mux , it receive http request from client
 	mux := http.NewServeMux()
@@ -96,22 +102,22 @@ func runGatewayServer(config util.Config, store db.Store) {
 	mux.Handle("/", grpcMux)
 	listener, err := net.Listen("tcp", config.HTTPServerAddress)
 	if err != nil {
-		log.Fatal("cannot create listener", err)
+		log.Fatal().Err(err).Msg("cannot create listener")
 	}
-	log.Printf("start REST server at %s", config.HTTPServerAddress)
+	log.Info().Msgf("start REST server at %s", config.HTTPServerAddress)
 	err = http.Serve(listener, mux)
 	if err != nil {
-		log.Fatal("cannot start server", err)
+		log.Fatal().Err(err).Msg("cannot start server")
 	}
 }
 
 func runGinServer(config util.Config, store db.Store) {
 	server, err := api.NewServer(config, store)
 	if err != nil {
-		log.Fatal("cannot create server", err)
+		log.Fatal().Err(err).Msg("cannot create server")
 	}
 	err = server.Start(config.HTTPServerAddress)
 	if err != nil {
-		log.Fatal("server cannot start", err)
+		log.Fatal().Err(err).Msg("server cannot start")
 	}
 }

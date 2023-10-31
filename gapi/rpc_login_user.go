@@ -30,7 +30,7 @@ func (server *Server) LoginUser(
 	//check the password is correct or not
 	err = util.CheckPassword(req.GetPassword(), user.HashedPassword)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "password is not correct:%s", err)
+		return nil, status.Errorf(codes.NotFound, "password is not correct:%s", err)
 	}
 	accessToken, accessPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
 	if err != nil {
