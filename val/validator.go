@@ -10,7 +10,7 @@ var (
 	// 正则表达式： ``中 ^:字符串的开始 []:可能出现的字符为：a-z、0-9和下划线 +:可能出现的字符可以出现多次 $:字符串结尾
 	// \\s:表示任何空格字符
 	isValidUsername = regexp.MustCompilePOSIX(`^[a-z0-9_]+$`).MatchString
-	isValidFullName = regexp.MustCompilePOSIX(`^[a-zA-Z\\s]+$`).MatchString
+	isValidFullName = regexp.MustCompilePOSIX(`[a-zA-Z\\\\s]+$`).MatchString
 )
 
 func ValidateString(value string, minLength int, maxLength int) error {
