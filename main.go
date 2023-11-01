@@ -91,6 +91,8 @@ func runGatewayServer(config util.Config, store db.Store) {
 	grpcMux := runtime.NewServeMux(jsonOption)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	//函数 RegisterSimpleBankHandlerServer 在HTTP和gRPC之间执行进程内转换
+	//即不通过gRPC interceptor 直接调用gRPC服务器的Handler
 	err = pb.RegisterSimpleBankHandlerServer(ctx, grpcMux, server)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cannot register handler server  ")
@@ -105,7 +107,8 @@ func runGatewayServer(config util.Config, store db.Store) {
 		log.Fatal().Err(err).Msg("cannot create listener")
 	}
 	log.Info().Msgf("start REST server at %s", config.HTTPServerAddress)
-	err = http.Serve(listener, mux)
+	logger := gapi.HttpLogger(mux)
+	err = http.Serve(listener, logger)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cannot start server")
 	}
