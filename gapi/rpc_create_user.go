@@ -6,6 +6,8 @@ import (
 	"github.com/GGjahoon/MySimpleBank/pb"
 	"github.com/GGjahoon/MySimpleBank/util"
 	"github.com/GGjahoon/MySimpleBank/val"
+	"github.com/GGjahoon/MySimpleBank/worker"
+	"github.com/hibiken/asynq"
 	"github.com/lib/pq"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -23,13 +25,31 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "hashed password failed: %s", err)
 	}
-	arg := db.CreateUserParams{
-		Username:       req.GetUsername(),
-		HashedPassword: hashedPassword,
-		FullName:       req.GetFullName(),
-		Email:          req.GetEmail(),
+
+	arg := db.CreateUserTxParams{
+		CreateUserParams: db.CreateUserParams{
+			Username:       req.GetUsername(),
+			HashedPassword: hashedPassword,
+			FullName:       req.GetFullName(),
+			Email:          req.GetEmail(),
+		},
+		AfterCreate: func(user db.User) error {
+			payload := &worker.PayloadSendVerifyEmail{Username: user.Username}
+			opts := []asynq.Option{
+				//最大重试次数：10
+				asynq.MaxRetry(10),
+				//放入critical queue中
+				asynq.Queue(worker.QueueCritical),
+			}
+			return server.taskDistributor.DistributeTaskSendVerifyEmail(ctx, payload, opts...)
+			//if err != nil {
+			//	return err
+			//}
+			//
+			//return nil
+		},
 	}
-	user, err := server.store.CreateUser(ctx, arg)
+	txResult, err := server.store.CreateUserTX(ctx, arg)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code.Name() {
@@ -40,7 +60,7 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		return nil, status.Errorf(codes.Internal, "failed to create a new user: %s", err)
 	}
 	rsp = &pb.CreateUserResponse{
-		User: convertUser(user),
+		User: convertUser(txResult.User),
 	}
 	return rsp, nil
 }
