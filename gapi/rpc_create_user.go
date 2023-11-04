@@ -12,6 +12,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (rsp *pb.CreateUserResponse, err error) {
@@ -40,13 +41,10 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 				asynq.MaxRetry(10),
 				//放入critical queue中
 				asynq.Queue(worker.QueueCritical),
+				//延迟worker执行时间为10s后
+				asynq.ProcessIn(time.Second * 1),
 			}
 			return server.taskDistributor.DistributeTaskSendVerifyEmail(ctx, payload, opts...)
-			//if err != nil {
-			//	return err
-			//}
-			//
-			//return nil
 		},
 	}
 	txResult, err := server.store.CreateUserTX(ctx, arg)
