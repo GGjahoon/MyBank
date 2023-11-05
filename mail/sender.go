@@ -48,7 +48,7 @@ func (sender *OutLookSender) SendEmail(
 ) error {
 	//create a newEmail
 	e := email.NewEmail()
-	e.From = fmt.Sprintf("<%s>", sender.fromEmailAddress)
+	e.From = fmt.Sprintf("%s <%s>", sender.name, sender.fromEmailAddress)
 	e.Subject = subject
 	e.HTML = []byte(content)
 	e.To = to
@@ -61,6 +61,6 @@ func (sender *OutLookSender) SendEmail(
 		}
 	}
 	//create a smtpAuth object for newEmail to send email
-	smtpAuth := smtp.PlainAuth("", sender.name, sender.fromEmailPassword, smtpAuthAddress)
+	smtpAuth := smtp.PlainAuth("", sender.fromEmailAddress, sender.fromEmailPassword, smtpAuthAddress)
 	return e.Send(smtpServerAddress, smtpAuth)
 }

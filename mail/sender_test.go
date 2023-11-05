@@ -16,8 +16,8 @@ func TestSendEmail(t *testing.T) {
 	<p>this is a massage from <a href="http://987009146@qq.com"> Ja Hoon</a></p>
 	`
 	to := []string{"987009146@qq.com"}
-	attachFiles := []string{"..README.md"}
+	attachFiles := []string{"../README.md"}
 
-	sender.SendEmail(subject, content, to, nil, nil, attachFiles)
+	err = sender.SendEmail(subject, content, to, nil, nil, attachFiles)
 	require.NoError(t, err)
 }
