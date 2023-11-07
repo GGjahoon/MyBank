@@ -12,10 +12,12 @@ migratedown:
 	migrate -path db/migration -database "postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable" -verbose down
 migratedown1:
 	migrate -path db/migration -database "postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable" -verbose down 1
+newmigrate:
+	migrate create -ext sql -dir db/migration -seq $(name)
 sqlc:
 	docker run --rm -v "D:\golang_sdk\go\SimpleBank:/src" -w /src sqlc/sqlc:1.21.0 generate
 test:
-	go test -v -cover ./...
+	go test -v -cover -short ./...
 server:
 	go run main.go
 mock:
@@ -24,4 +26,4 @@ proto:
 	.\set.bat
 evans:
 	evans --host localhost --port 9090 -r repl
-.PHONY: createdb  dropdb migrateup migratedown sqlc server mock migrateup1 migratedown1 proto test evans
+.PHONY: createdb  dropdb migrateup migratedown sqlc server mock migrateup1 migratedown1 proto test evans newmigrate

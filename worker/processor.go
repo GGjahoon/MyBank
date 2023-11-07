@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
+	"github.com/GGjahoon/MySimpleBank/mail"
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog/log"
 )
@@ -22,9 +23,10 @@ type TaskProcessor interface {
 type RedisTaskProcessor struct {
 	Server *asynq.Server
 	Store  db.Store
+	Sender mail.Sender
 }
 
-func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store) TaskProcessor {
+func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store, sender mail.Sender) TaskProcessor {
 	server := asynq.NewServer(
 		redisOpt,
 		asynq.Config{
@@ -41,6 +43,7 @@ func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store) TaskPr
 	return &RedisTaskProcessor{
 		Server: server,
 		Store:  store,
+		Sender: sender,
 	}
 }
 func (processor *RedisTaskProcessor) Start() error {

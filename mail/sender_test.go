@@ -7,6 +7,9 @@ import (
 )
 
 func TestSendEmail(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	config, err := util.LoadConfig("..")
 	require.NoError(t, err)
 	sender := NewOutLookSender(config.EmailSenderName, config.EmailSenderAddress, config.EmailSenderPassword)

@@ -7,6 +7,7 @@ import (
 	"github.com/GGjahoon/MySimpleBank/api"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
 	"github.com/GGjahoon/MySimpleBank/gapi"
+	"github.com/GGjahoon/MySimpleBank/mail"
 	"github.com/GGjahoon/MySimpleBank/pb"
 	"github.com/GGjahoon/MySimpleBank/util"
 	"github.com/GGjahoon/MySimpleBank/worker"
@@ -47,13 +48,14 @@ func main() {
 	//create a new taskDistributor
 	taskDistributor := worker.NewRedisTaskDistributor(redisOptions)
 	//run a new processor
-	go runProcessor(redisOptions, store)
+	go runProcessor(redisOptions, store, config)
 	//runGinServer(config, store)
 	go runGatewayServer(config, store, taskDistributor)
 	runGrpcServer(config, store, taskDistributor)
 }
-func runProcessor(redisOpt asynq.RedisClientOpt, store db.Store) {
-	processor := worker.NewRedisTaskProcessor(redisOpt, store)
+func runProcessor(redisOpt asynq.RedisClientOpt, store db.Store, config util.Config) {
+	sender := mail.NewOutLookSender(config.EmailSenderName, config.EmailSenderAddress, config.EmailSenderPassword)
+	processor := worker.NewRedisTaskProcessor(redisOpt, store, sender)
 	log.Info().Msg("start task processor")
 	err := processor.Start()
 	if err != nil {
