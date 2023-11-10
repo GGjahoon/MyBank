@@ -22,6 +22,7 @@ server:
 	go run main.go
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/GGjahoon/MySimpleBank/db/sqlc Store
+	mockgen -package mockwk -destination worker/mock/distributor.go github.com/GGjahoon/MySimpleBank/worker TaskDistributor
 proto:
 	.\set.bat
 evans:

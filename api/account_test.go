@@ -65,8 +65,7 @@ func TestGetAccountAPI(t *testing.T) {
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
 					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
-					Times(1).
-					Return(account, nil)
+					Times(1).Return(account, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				//check the response
