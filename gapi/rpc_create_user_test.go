@@ -2,6 +2,7 @@ package gapi
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	mockdb "github.com/GGjahoon/MySimpleBank/db/mock"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
@@ -11,6 +12,8 @@ import (
 	mockwk "github.com/GGjahoon/MySimpleBank/worker/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"reflect"
 	"testing"
 )
@@ -89,6 +92,29 @@ func TestCreateUserAPI(t *testing.T) {
 				require.Equal(t, createdUser.Username, user.Username)
 				require.Equal(t, createdUser.FullName, user.FullName)
 				require.Equal(t, createdUser.Email, user.Email)
+			},
+		},
+		{
+			name: "InternalError",
+			req: &pb.CreateUserRequest{
+				Username: user.Username,
+				FullName: user.FullName,
+				Email:    user.Email,
+				Password: password,
+			},
+			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
+				//taskPayload := &worker.PayloadSendVerifyEmail{Username: user.Username}
+				store.EXPECT().
+					CreateUserTX(gomock.Any(), gomock.Any()).
+					Times(1).Return(db.CreateUserTxResult{}, sql.ErrConnDone)
+				taskDistributor.EXPECT().
+					DistributeTaskSendVerifyEmail(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			},
+			checkResponse: func(t *testing.T, rsp *pb.CreateUserResponse, err error) {
+				require.Error(t, err)
+				s, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.Internal, s.Code())
 			},
 		},
 	}
