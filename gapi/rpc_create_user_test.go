@@ -117,6 +117,29 @@ func TestCreateUserAPI(t *testing.T) {
 				require.Equal(t, codes.Internal, s.Code())
 			},
 		},
+		{
+			name: "DuplicateUsername",
+			req: &pb.CreateUserRequest{
+				Username: user.Username,
+				FullName: user.FullName,
+				Email:    user.Email,
+				Password: password,
+			},
+			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
+				//taskPayload := &worker.PayloadSendVerifyEmail{Username: user.Username}
+				store.EXPECT().
+					CreateUserTX(gomock.Any(), gomock.Any()).
+					Times(1).Return(db.CreateUserTxResult{}, db.ErrUniqueViolation)
+				taskDistributor.EXPECT().
+					DistributeTaskSendVerifyEmail(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			},
+			checkResponse: func(t *testing.T, rsp *pb.CreateUserResponse, err error) {
+				require.Error(t, err)
+				s, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.AlreadyExists, s.Code())
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -146,6 +169,7 @@ func randomUser(t *testing.T) (user db.User, password string) {
 		HashedPassword: hashedPassword,
 		FullName:       util.RandomOwner(),
 		Email:          util.RandomEmail(),
+		Role:           util.DepositorRole,
 	}
 	return
 }

@@ -2,7 +2,7 @@ package gapi
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
 	"github.com/GGjahoon/MySimpleBank/pb"
 	"github.com/GGjahoon/MySimpleBank/util"
@@ -22,7 +22,7 @@ func (server *Server) LoginUser(
 	}
 	user, err := server.store.GetUser(ctx, req.GetUsername())
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return nil, status.Errorf(codes.NotFound, "cannot find the user in db:%s", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to query the user: %s", err)
@@ -32,11 +32,11 @@ func (server *Server) LoginUser(
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "password is not correct:%s", err)
 	}
-	accessToken, accessPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
+	accessToken, accessPayload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.AccessTokenDuration)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot create access token:%s", err)
 	}
-	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.RefreshTokenDuration)
+	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.RefreshTokenDuration)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot create refresh token:%s", err)
 	}

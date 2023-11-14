@@ -2,11 +2,12 @@ package gapi
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	db "github.com/GGjahoon/MySimpleBank/db/sqlc"
 	"github.com/GGjahoon/MySimpleBank/pb"
 	"github.com/GGjahoon/MySimpleBank/util"
 	"github.com/GGjahoon/MySimpleBank/val"
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,7 +15,7 @@ import (
 )
 
 func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
-	payload, err := server.authorizeUser(ctx)
+	payload, err := server.authorizeUser(ctx, []string{util.DepositorRole, util.BankerRole})
 	if err != nil {
 		return nil, unAuthenticatedError(err)
 	}
@@ -24,17 +25,17 @@ func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest)
 	}
 	//check the username who send request is same as username of payload or not
 	//avoid a user update other user's info
-	if req.Username != payload.Username {
+	if payload.Role != util.BankerRole && req.Username != payload.Username {
 		return nil, status.Errorf(codes.PermissionDenied, "cannot update other user's info")
 	}
 
 	// create the arg to update user
 	arg := db.UpdateUserParams{
-		FullName: sql.NullString{
+		FullName: pgtype.Text{
 			String: req.GetFullName(),
 			Valid:  req.FullName != nil,
 		},
-		Email: sql.NullString{
+		Email: pgtype.Text{
 			String: req.GetEmail(),
 			Valid:  req.Email != nil,
 		},
@@ -45,18 +46,18 @@ func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "hashed password failed: %s", err)
 		}
-		arg.HashedPassword = sql.NullString{
+		arg.HashedPassword = pgtype.Text{
 			String: hashedPassword,
 			Valid:  true,
 		}
-		arg.PasswordChangedAt = sql.NullTime{
+		arg.PasswordChangedAt = pgtype.Timestamptz{
 			Time:  time.Now(),
 			Valid: true,
 		}
 	}
 	user, err := server.store.UpdateUser(ctx, arg)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return nil, status.Errorf(codes.NotFound, "user not found in db")
 		}
 		return nil, status.Errorf(codes.Internal, "failed to update user")
